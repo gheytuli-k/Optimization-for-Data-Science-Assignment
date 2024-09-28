@@ -1,7 +1,7 @@
 def data_to_adjacency(data: dict[int, int, int, list[dict], list[dict], list[dict]], god_donor: bool=False, god_donor_weight: int=0) -> dict[int, list[dict]]:
     """
     Turns the input data into a adjacency representation of the graph
-    :paramm data: dictionary with the following keys
+    :param data: dictionary with the following keys
         - 'nr_pairs': The number of pairs.
         - 'nr_NDDs': The number of NDDs.
         - 'nr_arcs': The number of arcs.
