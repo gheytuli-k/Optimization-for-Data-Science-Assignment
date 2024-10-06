@@ -28,7 +28,11 @@ def find_cycles(G, max_length):
     return cycles
 
 G = nx.DiGraph(adjacency)
-cycles = find_cycles(G, 3)
+
+# Assign weight of 1 to all the edges
+for u, v in G.edges():
+    G[u][v]['weight'] = 1
+cycles = find_cycles(G, 5)
 
 
 # def optimize_cycles(cycles, vertex_weights):
@@ -68,57 +72,56 @@ cycles = find_cycles(G, 3)
 # vertex_weights = {i: len(cycle) for i, cycle in enumerate(cycles)}
 # print(optimize_cycles(cycles, vertex_weights))
 
-# def optimize_cycles(cycles, G):
-#     # Create a new Gurobi model
-#     model = gp.Model("Kidney_Exchange_Optimization")
+def optimize_cycles(cycles, G):
+    # Create a new Gurobi model
+    model = gp.Model("Kidney_Exchange_Optimization")
 
-#     # Step 1: Create variables for each cycle and compute their weights using edge weights
-#     cycle_vars = {}
-#     cycle_weights = {}
-#     for i, cycle in enumerate(cycles):
-#         # Compute the weight of the cycle as the sum of the weights of the arcs
-#         weight = 0
-#         for j in range(len(cycle) - 1):
-#             u = cycle[j]
-#             v = cycle[j + 1]
-#             if G.has_edge(u, v):
-#                 weight += G[u][v]['weight']
-#             else:
-#                 print(f"Edge from {u} to {v} not found in graph.")
-#         # If it's a cycle (returns to the starting node), add the weight of the closing edge
-#         if G.has_edge(cycle[-1], cycle[0]):
-#             weight += G[cycle[-1]][cycle[0]]['weight']
-#         else:
-#             print(f"Edge from {cycle[-1]} to {cycle[0]} not found in graph.")
-#         cycle_weights[i] = weight
-#         cycle_vars[i] = model.addVar(vtype=GRB.BINARY, name=f"x_{i}")
+    # Step 1: Create variables for each cycle and compute their weights using edge weights
+    cycle_vars = {}
+    cycle_weights = {}
+    for i, cycle in enumerate(cycles):
+        # Compute the weight of the cycle as the sum of the weights of the arcs
+        weight = 0
+        for j in range(len(cycle) - 1):
+            u = cycle[j]
+            v = cycle[j + 1]
+            if G.has_edge(u, v):
+                weight += G[u][v]['weight']
+            else:
+                print(f"Edge from {u} to {v} not found in graph.")
+        # If it's a cycle (returns to the starting node), add the weight of the closing edge
+        if G.has_edge(cycle[-1], cycle[0]):
+            weight += G[cycle[-1]][cycle[0]]['weight']
+        else:
+            print(f"Edge from {cycle[-1]} to {cycle[0]} not found in graph.")
+        cycle_weights[i] = weight
+        cycle_vars[i] = model.addVar(vtype=GRB.BINARY, name=f"x_{i}")
 
-#     # Step 2: Set the objective to maximize the total weight of selected cycles
-#     objective = gp.quicksum(cycle_weights[i] * cycle_vars[i] for i in range(len(cycles)))
-#     model.setObjective(objective, GRB.MAXIMIZE)
+    # Step 2: Set the objective to maximize the total weight of selected cycles
+    objective = gp.quicksum(cycle_weights[i] * cycle_vars[i] for i in range(len(cycles)))
+    model.setObjective(objective, GRB.MAXIMIZE)
 
-#     # Step 3: Add constraints to ensure vertex-disjoint cycles
-#     vertex_cycles = {}
-#     for i, cycle in enumerate(cycles):
-#         for vertex in set(cycle):  # Use set to avoid double-counting the starting node
-#             if vertex not in vertex_cycles:
-#                 vertex_cycles[vertex] = []
-#             vertex_cycles[vertex].append(i)
+    # Step 3: Add constraints to ensure vertex-disjoint cycles
+    vertex_cycles = {}
+    for i, cycle in enumerate(cycles):
+        for vertex in set(cycle):  # Use set to avoid double-counting the starting node
+            if vertex not in vertex_cycles:
+                vertex_cycles[vertex] = []
+            vertex_cycles[vertex].append(i)
 
-#     for vertex, cycle_indices in vertex_cycles.items():
-#         model.addConstr(
-#             gp.quicksum(cycle_vars[i] for i in cycle_indices) <= 1,
-#             name=f"vertex_{vertex}_constraint"
-#         )
+    for vertex, cycle_indices in vertex_cycles.items():
+        model.addConstr(
+            gp.quicksum(cycle_vars[i] for i in cycle_indices) <= 1,
+            name=f"vertex_{vertex}_constraint"
+        )
 
-#     # Step 4: Optimize the model
-#     model.optimize()
+    # Step 4: Optimize the model
+    model.optimize()
 
-#     # Step 5: Retrieve and return the optimal solution
-#     selected_cycles = [cycles[i] for i in range(len(cycles)) if cycle_vars[i].X > 0.5]
-#     total_weight = sum(cycle_weights[i] for i in range(len(cycles)) if cycle_vars[i].X > 0.5)
-#     print(f"Total weight of selected cycles: {total_weight}")
-#     return selected_cycles
+    # Step 5: Retrieve and return the optimal solution
+    selected_cycles = [cycles[i] for i in range(len(cycles)) if cycle_vars[i].X > 0.5]
+    total_weight = sum(cycle_weights[i] for i in range(len(cycles)) if cycle_vars[i].X > 0.5)
+    print(f"Total weight of selected cycles: {total_weight}")
+    return selected_cycles
 
-print(G.edges(data=True))
-
+print(optimize_cycles(cycles, G))
