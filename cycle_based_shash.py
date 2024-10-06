@@ -6,27 +6,38 @@ import networkx as nx
 
 data = Loader("Instance Files\Delorme_50_NDD_Unit_2.txt")
 # making adjacency out of the data and connecting all the pairs to god donor
-adjacency = data_to_adjacency(data, True, 1)
+adjacency = data_to_adjacency(data, True, 0)
 NDDs = [pair['pair_id'] for pair in data['pairs_NDDs']]
 
-# precomputing the cycles upto length 5 in the network
-def find_cycles(G, max_length):
-    cycles = []
+# def find_cycles(G, max_length, NDDs):
+#     cycles = []
     
-    def dfs(current_node, path):
-        if len(path) > max_length:
-            return
+#     def dfs(current_node, path):
+#         if len(path) > max_length:
+#             return
         
-        for neighbor in G.successors(current_node):
-            if neighbor == path[0] and len(path) > 2:  # Valid cycle found
-                cycles.append(path + [neighbor])
-            elif neighbor not in path:
-                dfs(neighbor, path + [neighbor])
+#         for neighbor in G.successors(current_node):
+#             if neighbor in NDDs:
+#                 continue  # skip NDDs
+#             if neighbor == path[0] and len(path) > 2:  # valid cycle
+#                 cycles.append(path + [neighbor])
+#             elif neighbor not in path:
+#                 dfs(neighbor, path + [neighbor])
 
-    for node in G.nodes():
-        dfs(node, [node])
+#     for node in G.nodes():
+#         if node in NDDs:
+#             continue  # skip NDDs
+#         dfs(node, [node])
     
+#     return cycles
+
+def find_cycles(G, max_length, NDDs):
+    cycles = []
+    for cycle in nx.simple_cycles(G):
+        if len(cycle) <= max_length and not any(node in NDDs for node in cycle):
+            cycles.append(cycle)
     return cycles
+
 
 def find_chains(G, NDDs, max_chain_length):
     chains = []
@@ -44,17 +55,21 @@ def find_chains(G, NDDs, max_chain_length):
 
     return chains
 
-
 G = nx.DiGraph(adjacency)
 
 # Assign weight of 1 to all the edges
 for u, v in G.edges():
     G[u][v]['weight'] = 1
-cycles = find_cycles(G, 6)
 
-max_cycle_length = 6  
-max_chain_length = 10 
-cycles = find_cycles(G, max_cycle_length)
+# Remove edges pointing to NDDs
+for ndd in NDDs:
+    incoming_edges = list(G.in_edges(ndd))
+    G.remove_edges_from(incoming_edges)
+
+max_cycle_length = 15 
+max_chain_length = 20 
+
+cycles = find_cycles(G, max_cycle_length, NDDs)
 chains = find_chains(G, NDDs, max_chain_length)
 
 sequences = cycles + chains
@@ -62,7 +77,7 @@ sequences = cycles + chains
 def optimize_sequences(sequences, G, NDDs):
     model = gp.Model("Kidney_Exchange_Optimization")
 
-    # Variables and weights
+    # variables and weights
     sequence_vars = {}
     sequence_weights = {}
     for i, seq in enumerate(sequences):
@@ -77,16 +92,18 @@ def optimize_sequences(sequences, G, NDDs):
         sequence_weights[i] = weight
         sequence_vars[i] = model.addVar(vtype=GRB.BINARY, name=f"x_{i}")
 
-    # Objective function
+    # objective
     model.setObjective(
         gp.quicksum(sequence_weights[i] * sequence_vars[i] for i in sequence_vars),
         GRB.MAXIMIZE
     )
 
-    # Constraints for nodes
+    # constraints for nodes (excluding NDDs)
     vertex_sequences = {}
     for i, seq in enumerate(sequences):
-        for vertex in set(seq):
+        # exclude NDDs from vertex constraints
+        seq_nodes = set(seq) - set(NDDs)
+        for vertex in seq_nodes:
             if vertex not in vertex_sequences:
                 vertex_sequences[vertex] = []
             vertex_sequences[vertex].append(i)
@@ -97,7 +114,7 @@ def optimize_sequences(sequences, G, NDDs):
             name=f"vertex_{vertex}_constraint"
         )
 
-    # Constraints for NDDs (if necessary)
+    # Constraints for NDDs
     for ndd in NDDs:
         ndd_sequences = [i for i, seq in enumerate(sequences) if seq[0] == ndd]
         model.addConstr(
