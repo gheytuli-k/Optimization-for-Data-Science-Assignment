@@ -32,7 +32,7 @@ G = nx.DiGraph(adjacency)
 # Assign weight of 1 to all the edges
 for u, v in G.edges():
     G[u][v]['weight'] = 1
-cycles = find_cycles(G, 5)
+cycles = find_cycles(G, 6)
 
 
 # def optimize_cycles(cycles, vertex_weights):
@@ -92,8 +92,8 @@ def optimize_cycles(cycles, G):
         # If it's a cycle (returns to the starting node), add the weight of the closing edge
         if G.has_edge(cycle[-1], cycle[0]):
             weight += G[cycle[-1]][cycle[0]]['weight']
-        else:
-            print(f"Edge from {cycle[-1]} to {cycle[0]} not found in graph.")
+        # else:
+        #     print(f"Edge from {cycle[-1]} to {cycle[0]} not found in graph.")
         cycle_weights[i] = weight
         cycle_vars[i] = model.addVar(vtype=GRB.BINARY, name=f"x_{i}")
 
