@@ -120,4 +120,5 @@ cycles = find_cycles(G, 3)
 #     print(f"Total weight of selected cycles: {total_weight}")
 #     return selected_cycles
 
+print(G.edges(data=True))
 

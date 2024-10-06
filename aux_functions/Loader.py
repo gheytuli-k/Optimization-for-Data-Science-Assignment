@@ -37,7 +37,7 @@ def Loader(file_path: str) -> dict[int, int, int, list[dict], list[dict], list[d
         # Step 2: Read the pairs and NDDs
         pairs_NDDs = []
         pairs_NoNDDs = []
-        for _ in range(nr_pairs):
+        for _ in range(nr_pairs+nr_NDDs):
             line = file.readline().strip().split(",")
             pair_id = int(line[0])
             is_NDD = int(line[1])  # 0 for pair, 1 for NDD
@@ -70,9 +70,8 @@ def Loader(file_path: str) -> dict[int, int, int, list[dict], list[dict], list[d
             arc_line = file.readline().strip().split(',')
             # Strip the opening parenthesis
             donor_pair_id = int(arc_line[0][1:])
-            patient_pair_id = int(arc_line[1].split(')')[
-                                  0])  # Strip the closing parenthesis
-            weight = int(arc_line[2])
+            patient_pair_id = int(arc_line[1][:-1])  # Strip the closing parenthesis
+            weight = int(arc_line[-1])
 
             arcs.append({
                 'donor_pair_id': donor_pair_id,
