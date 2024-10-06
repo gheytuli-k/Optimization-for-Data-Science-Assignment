@@ -9,29 +9,7 @@ data = Loader("Instance Files\Delorme_50_NDD_Unit_2.txt")
 adjacency = data_to_adjacency(data, True, 0)
 NDDs = [pair['pair_id'] for pair in data['pairs_NDDs']]
 
-# def find_cycles(G, max_length, NDDs):
-#     cycles = []
-    
-#     def dfs(current_node, path):
-#         if len(path) > max_length:
-#             return
-        
-#         for neighbor in G.successors(current_node):
-#             if neighbor in NDDs:
-#                 continue  # skip NDDs
-#             if neighbor == path[0] and len(path) > 2:  # valid cycle
-#                 cycles.append(path + [neighbor])
-#             elif neighbor not in path:
-#                 dfs(neighbor, path + [neighbor])
-
-#     for node in G.nodes():
-#         if node in NDDs:
-#             continue  # skip NDDs
-#         dfs(node, [node])
-    
-#     return cycles
-
-def find_cycles(G, max_length, NDDs):
+def find_cycles(G, max_length, NDDs): #use built in func
     cycles = []
     for cycle in nx.simple_cycles(G):
         if len(cycle) <= max_length and not any(node in NDDs for node in cycle):
