@@ -5,37 +5,53 @@ from gurobipy import GRB
 import networkx as nx
 import time as time
 
-max_cycle_length = 3
-
 data = Loader("Instance Files\Saidman_1000_NDD_Unit_2.txt")
-start_time = time.time()
 # making adjacency out of the data and connecting all the pairs to god donor
 adjacency = data_to_adjacency(data, True, 1)
 NDDs = [pair['pair_id'] for pair in data['pairs_NDDs']]
 
+def find_cycles(G, max_length, NDDs): #use built in func
+    cycles = []
+    for cycle in nx.simple_cycles(G, max_length):
+        if len(cycle) <= max_length and not any(node in NDDs for node in cycle):
+            cycles.append(cycle)
+    return cycles
+
+
+def find_chains(G, NDDs, max_chain_length):
+    chains = []
+
+    def dfs_chain(current_node, path):
+        if len(path) > max_chain_length:
+            return
+        for neighbor in G.successors(current_node):
+            if neighbor not in path:
+                chains.append(path + [neighbor])
+                dfs_chain(neighbor, path + [neighbor])
+
+    for ndd in NDDs:
+        dfs_chain(ndd, [ndd])
+
+    return chains
+
 G = nx.DiGraph(adjacency)
+
 # Assign weight of 1 to all the edges
 for u, v in G.edges():
     G[u][v]['weight'] = 1
 
-all_nodes = set(G.nodes())
-donors = all_nodes - set(NDDs)
+# Remove edges pointing to NDDs
+for ndd in NDDs:
+    incoming_edges = list(G.in_edges(ndd))
+    G.remove_edges_from(incoming_edges)
 
-for donor in donors:
-    for ndd in NDDs:
-        if not G.has_edge(donor, ndd):
-            G.add_edge(donor, ndd, weight=1) 
-
-def find_cycles(G, max_length, NDDs): #use built in func
-    cycles = []
-    for cycle in nx.simple_cycles(G, max_length):
-        if len(cycle) <= max_length:
-            cycles.append(cycle)
-    return cycles
+max_cycle_length = 3
+max_chain_length = 0
 
 cycles = find_cycles(G, max_cycle_length, NDDs)
+chains = find_chains(G, NDDs, max_chain_length)
 
-sequences = cycles
+sequences = cycles + chains
 
 def optimize_sequences(sequences, G, NDDs):
     model = gp.Model("Kidney_Exchange_Optimization")
@@ -94,16 +110,13 @@ def optimize_sequences(sequences, G, NDDs):
     print(f"Total weight of selected sequences: {total_weight}")
     return selected_sequences
 
-
+start_time = time.time()
 selected_sequences = optimize_sequences(sequences, G, NDDs)
 end_time = time.time()
 
 # Print results
 print("Max cycle Length:", max_cycle_length)
-if selected_sequences:
-    print("Selected Sequences (Cycles):")
-    for seq in selected_sequences:
-        print(seq)
-else:
-    print("No sequences were selected.")
+print("Selected Sequences (Cycles and Chains):")
+for seq in selected_sequences:
+    print(seq)
 print(f"Time taken: {end_time - start_time:.2f} seconds")
