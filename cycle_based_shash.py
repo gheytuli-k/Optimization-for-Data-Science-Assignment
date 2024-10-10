@@ -5,18 +5,18 @@ from gurobipy import GRB
 import networkx as nx
 import time as time
 
-max_cycle_length = 3
+max_cycle_length = 4
 
-data = Loader("Instance Files\Saidman_1000_NDD_Unit_2.txt")
+data = Loader("Instance Files\Delorme_1000_NoNDD_Weight_2.txt")
 start_time = time.time()
 # making adjacency out of the data and connecting all the pairs to god donor
-adjacency = data_to_adjacency(data, True, 1)
+adjacency = data_to_adjacency(data, True, 0)
 NDDs = [pair['pair_id'] for pair in data['pairs_NDDs']]
 
 G = nx.DiGraph(adjacency)
 # Assign weight of 1 to all the edges
-for u, v in G.edges():
-    G[u][v]['weight'] = 1
+# for u, v in G.edges():
+#     G[u][v]['weight'] = 1
 
 all_nodes = set(G.nodes())
 donors = all_nodes - set(NDDs)
@@ -27,13 +27,15 @@ for donor in donors:
             G.add_edge(donor, ndd, weight=1) 
 
 def find_cycles(G, max_length, NDDs): #use built in func
+    cts = time.time()
     cycles = []
     for cycle in nx.simple_cycles(G, max_length):
         if len(cycle) <= max_length:
             cycles.append(cycle)
-    return cycles
+    cyc_time = time.time() - cts    
+    return cycles, cyc_time
 
-cycles = find_cycles(G, max_cycle_length, NDDs)
+cycles, cycle_time = find_cycles(G, max_cycle_length, NDDs)
 
 sequences = cycles
 
@@ -101,9 +103,22 @@ end_time = time.time()
 # Print results
 print("Max cycle Length:", max_cycle_length)
 if selected_sequences:
-    print("Selected Sequences (Cycles):")
+    print("Selected Cycles and their weights:")
     for seq in selected_sequences:
-        print(seq)
+        weight = 0
+        # Sum weights of consecutive edges in the cycle
+        for j in range(len(seq) - 1):
+            u = seq[j]
+            v = seq[j + 1]
+            if G.has_edge(u, v):
+                weight += G[u][v]['weight']
+        u = seq[-1]
+        v = seq[0]
+        if G.has_edge(u, v):
+            weight += G[u][v]['weight']
+        print(f"Cycle {seq} has weight: {weight}")
+
 else:
     print("No sequences were selected.")
+print(f"Cycle generation time: {cycle_time:.2f} seconds")
 print(f"Time taken: {end_time - start_time:.2f} seconds")

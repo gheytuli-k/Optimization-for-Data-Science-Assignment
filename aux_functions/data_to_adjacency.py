@@ -30,7 +30,7 @@ def data_to_adjacency(data: dict[int, int, int, list[dict], list[dict], list[dic
         donor_pair_id = arc["donor_pair_id"]
         patient_pair_id = arc["patient_pair_id"]
         weight = arc["weight"]
-        graph[donor_pair_id][patient_pair_id] = weight
+        graph[donor_pair_id][patient_pair_id] = {'weight': weight}
     
     NDD_pairs = pair_ids = [pair['pair_id'] for pair in data['pairs_NDDs']]
 
@@ -38,7 +38,7 @@ def data_to_adjacency(data: dict[int, int, int, list[dict], list[dict], list[dic
         for i in range(data["nr_pairs"]):
             for j in NDD_pairs:
                 if j not in graph[i]:
-                    graph[i][j] = god_donor_weight
+                    graph[i][j] = {'weight': god_donor_weight}
             
     return graph
     
