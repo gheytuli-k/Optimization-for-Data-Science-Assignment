@@ -5,26 +5,23 @@ from gurobipy import GRB
 import networkx as nx
 import time as time
 
-max_cycle_length = 4
+def load_data(data_path):
+    data = Loader(data_path)
+    return data
 
-data = Loader("Instance Files\Delorme_50_NoNDD_Weight_2.txt")
-start_time = time.time()
-# making adjacency out of the data and connecting all the pairs to god donor
-adjacency = data_to_adjacency(data, True, 0)
-NDDs = [pair['pair_id'] for pair in data['pairs_NDDs']]
+def create_graph(data, god_donor=True, god_donor_weight=0):
+    # making adjacency out of the data and connecting all the pairs to god donor
+    adjacency = data_to_adjacency(data, god_donor, god_donor_weight)
+    NDDs = [pair['pair_id'] for pair in data['pairs_NDDs']]
+    G = nx.DiGraph(adjacency)
 
-G = nx.DiGraph(adjacency)
-# Assign weight of 1 to all the edges
-# for u, v in G.edges():
-#     G[u][v]['weight'] = 1
-
-all_nodes = set(G.nodes())
-donors = all_nodes - set(NDDs)
-
-for donor in donors:
-    for ndd in NDDs:
-        if not G.has_edge(donor, ndd):
-            G.add_edge(donor, ndd, weight=1) 
+    all_nodes = set(G.nodes())
+    donors = all_nodes - set(NDDs)
+    for donor in donors:
+        for ndd in NDDs:
+            if not G.has_edge(donor, ndd):
+                G.add_edge(donor, ndd, weight=1)
+    return G, NDDs
 
 def find_cycles(G, max_length, NDDs): #use built in func
     cts = time.time()
@@ -34,10 +31,6 @@ def find_cycles(G, max_length, NDDs): #use built in func
             cycles.append(cycle)
     cyc_time = time.time() - cts    
     return cycles, cyc_time
-
-cycles, cycle_time = find_cycles(G, max_cycle_length, NDDs)
-
-sequences = cycles
 
 def optimize_sequences(sequences, G, NDDs):
     model = gp.Model("Kidney_Exchange_Optimization")
@@ -87,38 +80,65 @@ def optimize_sequences(sequences, G, NDDs):
             name=f"NDD_{ndd}_constraint"
         )
 
-    # Optimize
+    #Optimise
     model.optimize()
-
+    
     # Retrieve selected sequences
     selected_sequences = [sequences[i] for i in sequence_vars if sequence_vars[i].X > 0.5]
     total_weight = sum(sequence_weights[i] for i in sequence_vars if sequence_vars[i].X > 0.5)
     print(f"Total weight of selected sequences: {total_weight}")
     return selected_sequences
 
-
-selected_sequences = optimize_sequences(sequences, G, NDDs)
-end_time = time.time()
-
-# Print results
-print("Max cycle Length:", max_cycle_length)
-if selected_sequences:
-    print("Selected Cycles and their weights:")
-    for seq in selected_sequences:
-        weight = 0
-        # Sum weights of consecutive edges in the cycle
-        for j in range(len(seq) - 1):
-            u = seq[j]
-            v = seq[j + 1]
+def output_results(selected_sequences, G, max_cycle_length, cycle_time, start_time):
+    print("Max cycle Length:", max_cycle_length)
+    if selected_sequences:
+        print("Selected Cycles and their weights:")
+        for seq in selected_sequences:
+            weight = 0
+            # Sum weights of consecutive edges in the cycle
+            for j in range(len(seq) - 1):
+                u = seq[j]
+                v = seq[j + 1]
+                if G.has_edge(u, v):
+                    weight += G[u][v]['weight']
+            u = seq[-1]
+            v = seq[0]
             if G.has_edge(u, v):
                 weight += G[u][v]['weight']
-        u = seq[-1]
-        v = seq[0]
-        if G.has_edge(u, v):
-            weight += G[u][v]['weight']
-        print(f"Cycle {seq} has weight: {weight}")
+            print(f"Cycle {seq} has weight: {weight}")
 
-else:
-    print("No sequences were selected.")
-print(f"Cycle generation time: {cycle_time:.2f} seconds")
-print(f"Time taken: {end_time - start_time:.2f} seconds")
+    else:
+        print("No sequences were selected.")
+    print(f"Cycle generation time: {cycle_time:.2f} seconds")
+    print(f"Time taken: {time.time() - start_time:.2f} seconds")
+
+def cycle_based_based_optimisation(data_path, max_cycle_length: int = 3, god_donor: bool = True, god_donor_weight: int = 0):
+    """
+    Optimizes the cycles in the graph
+    :param data_path: Path to the data file
+    :param max_cycle_length: Maximum length of cycles to consider
+    :return: COMPLETE THIS DOCSTRING
+    """
+    start_time = time.time()
+    
+    # Load data
+    data = load_data(data_path)
+    
+    # Create graph
+    G, NDDs = create_graph(data, god_donor=True, god_donor_weight=0)
+
+    # Find cycles
+    cycles, cycle_time = find_cycles(G, max_cycle_length, NDDs)
+
+    # Optimize
+    selected_sequences = optimize_sequences(cycles, G, NDDs)
+    
+    # Output results
+    output_results(selected_sequences, G, max_cycle_length, cycle_time, start_time)
+
+
+cycle_based_based_optimisation("Instance Files\Delorme_50_NoNDD_Weight_2.txt", 3, True, 0)
+
+    
+    
+
