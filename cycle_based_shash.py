@@ -7,7 +7,7 @@ import time as time
 
 max_cycle_length = 4
 
-data = Loader("Instance Files\Delorme_1000_NoNDD_Weight_2.txt")
+data = Loader("Instance Files\Delorme_50_NoNDD_Weight_2.txt")
 start_time = time.time()
 # making adjacency out of the data and connecting all the pairs to god donor
 adjacency = data_to_adjacency(data, True, 0)
