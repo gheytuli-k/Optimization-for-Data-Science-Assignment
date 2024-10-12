@@ -32,7 +32,7 @@ def create_graph(data, god_donor=True, god_donor_weight=0):
         for ndd in NDDs:
             if not G.has_edge(donor, ndd):
                 G.add_edge(donor, ndd, weight=god_donor_weight)
-    return G, NDDs
+    return G
 
 def find_cycles(G, max_length): #use built in func
     cts = time.time()
@@ -145,7 +145,7 @@ def cycle_based_based_optimisation(data_path, max_cycle_length: int = 3, god_don
     data = load_data(data_path)
     
     #create graph
-    G, NDDs = create_graph(data, god_donor, god_donor_weight)
+    G = create_graph(data, god_donor, god_donor_weight)
 
     #find cycles
     cycles, cycle_time = find_cycles(G, max_cycle_length)
