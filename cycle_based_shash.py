@@ -34,7 +34,7 @@ def create_graph(data, god_donor=True, god_donor_weight=0):
                 G.add_edge(donor, ndd, weight=god_donor_weight)
     return G, NDDs
 
-def find_cycles(G, max_length, NDDs): #use built in func
+def find_cycles(G, max_length): #use built in func
     cts = time.time()
     cycles = []
 
@@ -45,7 +45,7 @@ def find_cycles(G, max_length, NDDs): #use built in func
     cyc_time = time.time() - cts    
     return cycles, cyc_time
 
-def optimize_sequences(sequences, G, NDDs, beta, pair_vpra):
+def optimize_sequences(sequences, G, beta, pair_vpra):
     #initialise model
     model = gp.Model("Kidney_Exchange_Optimization")
 
@@ -137,7 +137,7 @@ def cycle_based_based_optimisation(data_path, max_cycle_length: int = 3, god_don
     Optimizes the cycles in the graph
     :param data_path: Path to the data file
     :param max_cycle_length: Maximum length of cycles to consider
-    :return: COMPLETE THIS DOCSTRING
+    :return: None (but prints results)
     """
     start_time = time.time()
     
@@ -145,19 +145,19 @@ def cycle_based_based_optimisation(data_path, max_cycle_length: int = 3, god_don
     data = load_data(data_path)
     
     #create graph
-    G, NDDs = create_graph(data, god_donor=True, god_donor_weight=0)
+    G, NDDs = create_graph(data, god_donor, god_donor_weight)
 
     #find cycles
-    cycles, cycle_time = find_cycles(G, max_cycle_length, NDDs)
+    cycles, cycle_time = find_cycles(G, max_cycle_length)
 
     #optimize
-    selected_sequences = optimize_sequences(cycles, G, NDDs, beta, data['pair_vpra'])
+    selected_sequences = optimize_sequences(cycles, G, beta, data['pair_vpra'])
     
     #output results
     output_results(selected_sequences, G, max_cycle_length, cycle_time, start_time)
 
 
-cycle_based_based_optimisation("Instance Files\Saidman_50_NDD_Weight_2.txt", 5, True, 0, 0)
+cycle_based_based_optimisation("Instance Files\Saidman_50_NDD_Weight_2.txt", 3, True, 0, 0)
 
     
     
