@@ -114,25 +114,28 @@ def output_results(selected_sequences, G, max_cycle_length, cycle_time, start_ti
         total_weight = 0
         for seq in selected_sequences:
             weight = 0
-            #sum weights of consecutive edges in the cycle
+            # Sum weights of consecutive edges in the sequence
             for j in range(len(seq) - 1):
                 u = seq[j]
                 v = seq[j + 1]
                 if G.has_edge(u, v):
                     weight += G[u][v]['weight']
-            u = seq[-1] #add last edge to complete the cycle
-            v = seq[0]
-            if G.has_edge(u, v):
-                weight += G[u][v]['weight']
-                total_weight += weight
-            print(f"Cycle {seq} has weight: {weight}") #per cycle weight
-        print(f"Total weight of selected cycles: {total_weight}") #total weight (no beta or vpra factor)
+            # Add the weight of the last edge if it's a cycle
+            if seq[0] == seq[-1] and len(seq) > 1:
+                u = seq[-1]
+                v = seq[0]
+                if G.has_edge(u, v):
+                    weight += G[u][v]['weight']
+            total_weight += weight
+            print(f"Cycle {seq} has weight: {weight}")  # Per cycle weight
+        print(f"Total weight of selected cycles: {total_weight}")  # Total weight (no beta or vpra factor)
     else:
         print("No sequences were selected.")
     print(f"Cycle generation time: {cycle_time:.2f} seconds")
     print(f"Total time taken: {time.time() - start_time:.2f} seconds")
 
-def cycle_based_based_optimisation(data_path, max_cycle_length: int = 3, god_donor: bool = True, god_donor_weight: int = 0, beta: float = 0.0):
+
+def cycle_based_based_optimisation(data_path, max_cycle_length: int = 3, god_donor: bool = True, god_donor_weight: int = 1, beta: float = 0.0):
     """
     Optimizes the cycles in the graph
     :param data_path: Path to the data file
@@ -157,7 +160,7 @@ def cycle_based_based_optimisation(data_path, max_cycle_length: int = 3, god_don
     output_results(selected_sequences, G, max_cycle_length, cycle_time, start_time)
 
 
-cycle_based_based_optimisation("Instance Files\Saidman_50_NDD_Weight_2.txt", 3, True, 0, 0)
+cycle_based_based_optimisation("Instance Files\Saidman_200_NDD_Unit_0.txt", 3, True, 0, 0)
 
     
     
