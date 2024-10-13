@@ -290,7 +290,7 @@ def run_experiments(dataset_folder, max_cycle_length: int = 3, god_donor: bool =
             pass
 
     
-    return results_dict, 
+    return results_dict 
         
 def dict_to_csv(results_dict, output_file):
     """
