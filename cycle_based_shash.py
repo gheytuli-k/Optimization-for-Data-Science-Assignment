@@ -307,4 +307,4 @@ def dict_to_csv(results_dict, output_file):
             writer.writerow([dataset, metrics["Total Weight"], metrics["Cycle Time (s)"], metrics["Total Time (s)"], metrics["Total Model Weight"], metrics["Max Cycle Length"]])
 
 e = run_experiments("Instance Files Test", 3, True, 0, 0)
-dict_to_csv(e[0], "results.csv")
+dict_to_csv(e, "results.csv")
