@@ -5,8 +5,19 @@ import gurobipy as gp
 from gurobipy import GRB
 import networkx as nx
 import time as time
+import os
+from pathlib import Path
 
 def load_data(data_path):
+    """
+    Loads data from the specified path and processes it to create a dictionary and also maps pair IDs to patient VPRA values.
+    Args:
+        data_path (str): The path to the data file.
+    Returns:
+        dict: A dictionary containing the loaded data with an additional key 
+              'pair_vpra' which maps pair IDs to patient VPRA values.
+    """
+    
     data = Loader(data_path)
 
     #dict with pair_id as key and patient_vpra as value
@@ -20,6 +31,16 @@ def load_data(data_path):
     return data
 
 def create_graph(data, god_donor=True, god_donor_weight=0):
+    """
+    Creates a directed graph from the given data, optionally connecting all pairs to a 'god donor'.
+    Args:
+        data (dict): The input data containing pairs and non-directed donors (NDDs).
+        god_donor (bool, optional): If True, connects all pairs to a 'god donor'. Defaults to True.
+        god_donor_weight (int, optional): The weight of the edges connecting pairs to the 'god donor'. Defaults to 0.
+    Returns:
+        networkx.DiGraph: A directed graph representing the connections between pairs and NDDs.
+    """
+
     #making adjacency out of the data and connecting all the pairs to god donor
     adjacency = data_to_adjacency(data, god_donor, god_donor_weight)
     NDDs = [pair['pair_id'] for pair in data['pairs_NDDs']]
@@ -35,6 +56,17 @@ def create_graph(data, god_donor=True, god_donor_weight=0):
     return G
 
 def find_cycles(G, max_length): #use built in func
+    """
+    Finds all simple cycles in a directed graph G with a length less than or equal to max_length.
+    Parameters:
+    G (networkx.DiGraph): A directed graph in which to find cycles.
+    max_length (int): The maximum length of cycles to be considered.
+    Returns:
+    tuple: A tuple containing:
+        - cycles (list of lists): A list of cycles, where each cycle is represented as a list of nodes.
+        - cyc_time (float): The time taken to find the cycles in seconds.
+    """
+
     cts = time.time()
     cycles = []
 
@@ -46,6 +78,18 @@ def find_cycles(G, max_length): #use built in func
     return cycles, cyc_time
 
 def optimize_sequences(sequences, G, beta, pair_vpra):
+    """
+    Optimize sequences in a kidney exchange problem using Gurobi.
+    Parameters:
+    sequences (list of lists): A list of sequences (cycles), where each sequence is a list of nodes.
+    G (networkx.Graph): A directed graph where nodes represent patients/donors and edges represent possible exchanges.
+    beta (float): A factor to adjust the weight of edges based on the pair_vpra values.
+    pair_vpra (dict): A dictionary where keys are node identifiers and values are VPRA (Virtual PRA) values.
+    Returns:
+    selected_sequences (list of lists): A list of selected sequences (cycles) after optimization.
+    total_model_weight (float): The total weight of the selected sequences.
+    """
+
     #initialise model
     model = gp.Model("Kidney_Exchange_Optimization")
 
@@ -103,11 +147,25 @@ def optimize_sequences(sequences, G, beta, pair_vpra):
     
     #retrieve selected sequences
     selected_sequences = [sequences[i] for i in sequence_vars if sequence_vars[i].X > 0.5]
-    total_weight = sum(sequence_weights[i] for i in sequence_vars if sequence_vars[i].X > 0.5)
-    print(f"Total weight of selected sequences (model): {total_weight}")
-    return selected_sequences
+    total_model_weight = sum(sequence_weights[i] for i in sequence_vars if sequence_vars[i].X > 0.5)
+    print(f"Total weight of selected sequences (model): {total_model_weight}")
+    return selected_sequences, total_model_weight
 
-def output_results(selected_sequences, G, max_cycle_length, cycle_time, start_time):
+def output_results(selected_sequences, G, max_cycle_length, cycle_time, start_time, experiment, total_model_weight):
+    """
+    Outputs the results of the cycle selection process and optionally returns performance metrics.
+    Parameters:
+    selected_sequences (list of lists): A list of sequences, where each sequence is a list of nodes representing a cycle.
+    G (networkx.Graph): The graph containing nodes and weighted edges.
+    max_cycle_length (int): The maximum allowed length of a cycle.
+    cycle_time (float): The time taken to generate cycles.
+    start_time (float): The start time of the entire process.
+    experiment (bool): Flag indicating whether to return performance metrics.
+    total_model_weight (float): The total weight of the model used in the experiment.
+    Returns:
+    tuple: If experiment is True, returns a tuple containing total_weight, cycle_time, total_time, and total_model_weight.
+    """
+
     print("Set max cycle Length:", max_cycle_length)
     if selected_sequences:
         print("Selected Cycles and their weights:")
@@ -132,16 +190,30 @@ def output_results(selected_sequences, G, max_cycle_length, cycle_time, start_ti
     else:
         print("No sequences were selected.")
     print(f"Cycle generation time: {cycle_time:.2f} seconds")
-    print(f"Total time taken: {time.time() - start_time:.2f} seconds")
+    total_time = time.time() - start_time
+    print(f"Total time taken: {total_time:.2f} seconds")
+    if experiment:
+        return total_weight, cycle_time, total_time, total_model_weight
 
 
-def cycle_based_based_optimisation(data_path, max_cycle_length: int = 3, god_donor: bool = True, god_donor_weight: int = 1, beta: float = 0.0):
+def cycle_based_based_optimisation(data_path, max_cycle_length: int = 3, god_donor: bool = True, god_donor_weight: int = 10, beta: float = 0.0, experiment = False):
     """
-    Optimizes the cycles in the graph
-    :param data_path: Path to the data file
-    :param max_cycle_length: Maximum length of cycles to consider
-    :return: None (but prints results)
+    Perform cycle-based optimization on a given dataset.
+    Parameters:
+    data_path (str): Path to the input data file.
+    max_cycle_length (int, optional): Maximum length of cycles to consider. Default is 3.
+    god_donor (bool, optional): Whether to include a god donor in the graph. Default is True.
+    god_donor_weight (int, optional): Weight assigned to the god donor. Default is 0.
+    beta (float, optional): Regularization parameter for optimization. Default is 0.0.
+    experiment (bool, optional): Flag to indicate if the function is run in experimental mode. Default is False.
+    Returns:
+    tuple: A tuple containing:
+        - total_weight (float): The total weight of the selected sequences.
+        - cycle_time (float): The time taken to find cycles.
+        - total_time (float): The total time taken for the optimization process.
+        - total_model_weight (float): The total model weight after optimization.
     """
+    
     start_time = time.time()
     
     #load data
@@ -154,14 +226,70 @@ def cycle_based_based_optimisation(data_path, max_cycle_length: int = 3, god_don
     cycles, cycle_time = find_cycles(G, max_cycle_length)
 
     #optimize
-    selected_sequences = optimize_sequences(cycles, G, beta, data['pair_vpra'])
+    selected_sequences, total_weight = optimize_sequences(cycles, G, beta, data['pair_vpra'])
     
     #output results
-    output_results(selected_sequences, G, max_cycle_length, cycle_time, start_time)
+    total_weight, cycle_time, total_time, total_model_weight = output_results(selected_sequences, G, max_cycle_length, cycle_time, start_time, experiment, total_weight)
+
+    return  total_weight, cycle_time, total_time, total_model_weight
 
 
-cycle_based_based_optimisation("Instance Files\Saidman_200_NDD_Unit_0.txt", 3, True, 0, 0)
+#cycle_based_based_optimisation("Instance Files\Saidman_50_NDD_Unit_0.txt", 3, True, 0, 100, False)
+
+
+def run_experiments(dataset_folder, max_cycle_length: int = 3, god_donor: bool = True, god_donor_weight: int = 0, beta: float = 0.0):
+    """
+    Run optimization experiments on all dataset files in the specified folder.
+    Parameters:
+    dataset_folder (str): Path to the folder containing dataset files.
+    max_cycle_length (int, optional): Maximum cycle length for the optimization. Default is 3.
+    god_donor (bool, optional): Flag to indicate if a god donor should be used. Default is True.
+    god_donor_weight (int, optional): Weight of the god donor. Default is 0.
+    beta (float, optional): Beta parameter for the optimization. Default is 0.0.
+    Returns:
+    dict: A dictionary containing the results of the optimization for each dataset file.
+          The keys are the filenames, and the values are dictionaries with the following keys:
+          - "Total Weight": The total weight of the optimized solution.
+          - "Cycle Time (s)": The time taken to find the optimal cycle.
+          - "Total Time (s)": The total time taken for the optimization.
+          - "Total Model Weight": The total weight of the model used in the optimization.
+    """
 
     
-    
+    results_dict = {}
 
+    dataset_path = Path(dataset_folder)
+
+    for file_path in dataset_path.glob("*.txt"): #loop through all files in the folder
+
+        try:
+            # run optimization on the current file
+            metrics = cycle_based_based_optimisation(
+                data_path=str(file_path),
+                max_cycle_length=max_cycle_length,
+                god_donor=god_donor,
+                god_donor_weight=god_donor_weight,
+                beta=beta,
+                experiment=True
+            )
+        
+            if metrics: #if metrics are returned, add them to the results dictionary
+                total_weight, cycle_time, total_time, total_model_weight = metrics
+                
+                results_dict[file_path.name] = {
+                    "Total Weight": total_weight,
+                    "Cycle Time (s)": cycle_time,
+                    "Total Time (s)": total_time,
+                    "Total Model Weight": total_model_weight
+                }
+
+        except Exception as e:
+            pass
+
+    
+    return results_dict
+        
+
+
+e = run_experiments("Instance Files Test", 3, True, 0, 0)
+print(e)
