@@ -7,6 +7,7 @@ import networkx as nx
 import time as time
 import os
 from pathlib import Path
+import csv
 
 def load_data(data_path):
     """
@@ -276,20 +277,34 @@ def run_experiments(dataset_folder, max_cycle_length: int = 3, god_donor: bool =
             if metrics: #if metrics are returned, add them to the results dictionary
                 total_weight, cycle_time, total_time, total_model_weight = metrics
                 
-                results_dict[file_path.name] = {
+                results_dict[file_path.name[:-4]] = {
                     "Total Weight": total_weight,
                     "Cycle Time (s)": cycle_time,
                     "Total Time (s)": total_time,
-                    "Total Model Weight": total_model_weight
+                    "Total Model Weight": total_model_weight,
+                    "Max Cycle Length": max_cycle_length
+
                 }
 
         except Exception as e:
             pass
 
     
-    return results_dict
+    return results_dict, 
         
+def dict_to_csv(results_dict, output_file):
+    """
+    Write the results of the optimization experiments to a CSV file.
+    Parameters:
+    results_dict (dict): A dictionary containing the results of the optimization experiments.
+    output_file (str): The path to the output CSV file.
+    """
 
+    with open(output_file, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(["Dataset", "Total Weight", "Cycle Time (s)", "Total Time (s)", "Total Model Weight", "Max Cycle Length"])
+        for dataset, metrics in results_dict.items():
+            writer.writerow([dataset, metrics["Total Weight"], metrics["Cycle Time (s)"], metrics["Total Time (s)"], metrics["Total Model Weight"], metrics["Max Cycle Length"]])
 
 e = run_experiments("Instance Files Test", 3, True, 0, 0)
-print(e)
+dict_to_csv(e[0], "results.csv")
